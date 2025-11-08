@@ -1,12 +1,14 @@
-// lib/screens/home/post_book_screen.dart
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import '../../utils/constants.dart';
 import '../../utils/validators.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../models/book.dart';
+import '../../services/database_service.dart';
 
 class PostBookScreen extends StatefulWidget {
   final Book? book; // For editing existing book
@@ -21,6 +23,7 @@ class _PostBookScreenState extends State<PostBookScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _authorController = TextEditingController();
+  final _databaseService = DatabaseService();
   String _selectedCondition = 'Used';
   File? _imageFile;
   bool _isLoading = false;
@@ -58,9 +61,49 @@ class _PostBookScreenState extends State<PostBookScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<String?> _uploadImage(File imageFile) async {
+    try {
+      // Create unique filename
+      String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      
+      // Reference to Firebase Storage
+      Reference storageRef = FirebaseStorage.instance
+          .ref()
+          .child('book_covers')
+          .child(fileName);
+
+      // Upload file
+      UploadTask uploadTask = storageRef.putFile(imageFile);
+      
+      // Wait for upload to complete
+      TaskSnapshot snapshot = await uploadTask;
+      
+      // Get download URL
+      String downloadUrl = await snapshot.ref.getDownloadURL();
+      
+      return downloadUrl;
+    } catch (e) {
+      print('Error uploading image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error uploading image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return null;
     }
   }
 
@@ -68,60 +111,88 @@ class _PostBookScreenState extends State<PostBookScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      // TODO: Upload image to Firebase Storage and save book to Firestore
-      // Example:
-      // String? imageUrl;
-      // if (_imageFile != null) {
-      //   String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      //   Reference storageRef = FirebaseStorage.instance
-      //       .ref()
-      //       .child('book_covers')
-      //       .child(fileName);
-      //   await storageRef.putFile(_imageFile!);
-      //   imageUrl = await storageRef.getDownloadURL();
-      // }
-      //
-      // String currentUserId = FirebaseAuth.instance.currentUser!.uid;
-      // String currentUserName = FirebaseAuth.instance.currentUser!.displayName ?? 'User';
-      //
-      // if (widget.book == null) {
-      //   // Create new book
-      //   await FirebaseFirestore.instance.collection('books').add({
-      //     'title': _titleController.text.trim(),
-      //     'author': _authorController.text.trim(),
-      //     'condition': _selectedCondition,
-      //     'imageUrl': imageUrl,
-      //     'ownerId': currentUserId,
-      //     'ownerName': currentUserName,
-      //     'postedAt': DateTime.now().toIso8601String(),
-      //     'swapStatus': null,
-      //   });
-      // } else {
-      //   // Update existing book
-      //   await FirebaseFirestore.instance
-      //       .collection('books')
-      //       .doc(widget.book!.id)
-      //       .update({
-      //     'title': _titleController.text.trim(),
-      //     'author': _authorController.text.trim(),
-      //     'condition': _selectedCondition,
-      //     if (imageUrl != null) 'imageUrl': imageUrl,
-      //   });
-      // }
+      try {
+        User? currentUser = FirebaseAuth.instance.currentUser;
+        
+        if (currentUser == null) {
+          throw Exception('User not logged in');
+        }
 
-      await Future.delayed(const Duration(seconds: 2));
-      setState(() => _isLoading = false);
+        // Upload image if a new one was selected
+        String? imageUrl;
+        if (_imageFile != null) {
+          imageUrl = await _uploadImage(_imageFile!);
+          if (imageUrl == null) {
+            setState(() => _isLoading = false);
+            return; // Upload failed, don't continue
+          }
+        }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.book == null
-                ? 'Book posted successfully!'
-                : 'Book updated successfully!'),
-            backgroundColor: AppColors.secondary,
-          ),
-        );
-        Navigator.pop(context);
+        if (widget.book == null) {
+          // Create new book
+          Book newBook = Book(
+            id: '', // Firestore will generate this
+            title: _titleController.text.trim(),
+            author: _authorController.text.trim(),
+            condition: _selectedCondition,
+            imageUrl: imageUrl,
+            ownerId: currentUser.uid,
+            ownerName: currentUser.displayName ?? 'User',
+            postedAt: DateTime.now(),
+          );
+
+          String? bookId = await _databaseService.addBook(newBook);
+          
+          if (bookId == null) {
+            throw Exception('Failed to create book');
+          }
+        } else {
+          // Update existing book
+          Map<String, dynamic> updateData = {
+            'title': _titleController.text.trim(),
+            'author': _authorController.text.trim(),
+            'condition': _selectedCondition,
+          };
+
+          // Only update imageUrl if a new image was uploaded
+          if (imageUrl != null) {
+            updateData['imageUrl'] = imageUrl;
+          }
+
+          bool success = await _databaseService.updateBook(
+            widget.book!.id,
+            updateData,
+          );
+
+          if (!success) {
+            throw Exception('Failed to update book');
+          }
+        }
+
+        setState(() => _isLoading = false);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(widget.book == null
+                  ? 'Book posted successfully!'
+                  : 'Book updated successfully!'),
+              backgroundColor: AppColors.secondary,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        setState(() => _isLoading = false);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -183,6 +254,38 @@ class _PostBookScreenState extends State<PostBookScreen> {
                                   child: Image.network(
                                     widget.book!.imageUrl!,
                                     fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Center(
+                                        child: CircularProgressIndicator(
+                                          value: loadingProgress.expectedTotalBytes != null
+                                              ? loadingProgress.cumulativeBytesLoaded /
+                                                  loadingProgress.expectedTotalBytes!
+                                              : null,
+                                          color: AppColors.secondary,
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.add_photo_alternate,
+                                            size: 48,
+                                            color: AppColors.secondary,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Add Cover Image',
+                                            style: TextStyle(
+                                              color: AppColors.secondary,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
                                   ),
                                 )
                               : Column(
@@ -287,7 +390,7 @@ class _PostBookScreenState extends State<PostBookScreen> {
 
                 // Submit Button
                 CustomButton(
-                  text: widget.book == null ? 'Post' : 'Update',
+                  text: widget.book == null ? 'Post Book' : 'Update Book',
                   onPressed: _handleSubmit,
                   isLoading: _isLoading,
                 ),

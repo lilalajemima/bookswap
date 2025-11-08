@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../utils/constants.dart';
 import '../../models/book.dart';
+import '../../models/swap_offer.dart';
+import '../../services/database_service.dart';
 import 'post_book_screen.dart';
 import '../chat/chat_screen.dart';
 
@@ -19,45 +22,60 @@ class BookDetailScreen extends StatefulWidget {
 }
 
 class _BookDetailScreenState extends State<BookDetailScreen> {
+  final DatabaseService _databaseService = DatabaseService();
   bool _isLoading = false;
 
   Future<void> _initiateSwap() async {
     setState(() => _isLoading = true);
 
-    // TODO: Create swap offer in Firestore
-    // Example:
-    // String currentUserId = FirebaseAuth.instance.currentUser!.uid;
-    // String currentUserName = FirebaseAuth.instance.currentUser!.displayName ?? 'User';
-    //
-    // // Create swap offer
-    // await FirebaseFirestore.instance.collection('swap_offers').add({
-    //   'bookId': widget.book.id,
-    //   'bookTitle': widget.book.title,
-    //   'senderId': currentUserId,
-    //   'senderName': currentUserName,
-    //   'recipientId': widget.book.ownerId,
-    //   'recipientName': widget.book.ownerName,
-    //   'status': 'Pending',
-    //   'createdAt': DateTime.now().toIso8601String(),
-    // });
-    //
-    // // Update book status
-    // await FirebaseFirestore.instance
-    //     .collection('books')
-    //     .doc(widget.book.id)
-    //     .update({'swapStatus': 'Pending'});
+    try {
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      
+      if (currentUser == null) {
+        throw Exception('User not logged in');
+      }
 
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() => _isLoading = false);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Swap request sent!'),
-          backgroundColor: AppColors.secondary,
-        ),
+      // Create swap offer
+      SwapOffer offer = SwapOffer(
+        id: '', // Firestore will generate
+        bookId: widget.book.id,
+        bookTitle: widget.book.title,
+        senderId: currentUser.uid,
+        senderName: currentUser.displayName ?? 'User',
+        recipientId: widget.book.ownerId,
+        recipientName: widget.book.ownerName,
+        status: 'Pending',
+        createdAt: DateTime.now(),
       );
-      Navigator.pop(context);
+
+      String? offerId = await _databaseService.createSwapOffer(offer);
+
+      setState(() => _isLoading = false);
+
+      if (offerId == null) {
+        throw Exception('Failed to create swap offer');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Swap request sent!'),
+            backgroundColor: AppColors.secondary,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -137,20 +155,40 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
               height: 300,
               decoration: BoxDecoration(
                 color: AppColors.secondary,
-                image: widget.book.imageUrl != null
-                    ? DecorationImage(
-                        image: NetworkImage(widget.book.imageUrl!),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
               ),
-              child: widget.book.imageUrl == null
-                  ? const Icon(
-                      Icons.book,
-                      color: AppColors.white,
-                      size: 100,
+              child: widget.book.imageUrl != null
+                  ? Image.network(
+                      widget.book.imageUrl!,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                            color: AppColors.accent,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                          child: Icon(
+                            Icons.book,
+                            color: AppColors.white,
+                            size: 100,
+                          ),
+                        );
+                      },
                     )
-                  : null,
+                  : const Center(
+                      child: Icon(
+                        Icons.book,
+                        color: AppColors.white,
+                        size: 100,
+                      ),
+                    ),
             ),
 
             Padding(
@@ -201,6 +239,40 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                       ),
                     ),
                   ),
+
+                  // Show swap status if present
+                  if (widget.book.swapStatus != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getSwapStatusColor(widget.book.swapStatus!),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _getSwapStatusIcon(widget.book.swapStatus!),
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Status: ${widget.book.swapStatus}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 24),
 
@@ -273,8 +345,8 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Swap Button (only if not owner)
-                  if (!widget.isOwner)
+                  // Swap Button (only if not owner and not already pending)
+                  if (!widget.isOwner && widget.book.swapStatus != 'Pending')
                     SizedBox(
                       width: double.infinity,
                       height: 56,
@@ -314,5 +386,31 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
         ),
       ),
     );
+  }
+
+  Color _getSwapStatusColor(String status) {
+    switch (status) {
+      case 'Pending':
+        return Colors.orange;
+      case 'Accepted':
+        return Colors.green;
+      case 'Rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getSwapStatusIcon(String status) {
+    switch (status) {
+      case 'Pending':
+        return Icons.hourglass_empty;
+      case 'Accepted':
+        return Icons.check_circle;
+      case 'Rejected':
+        return Icons.cancel;
+      default:
+        return Icons.info;
+    }
   }
 }

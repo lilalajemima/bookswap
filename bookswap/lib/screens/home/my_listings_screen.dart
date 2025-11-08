@@ -1,8 +1,9 @@
-// lib/screens/home/my_listings_screen.dart
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../utils/constants.dart';
 import '../../widgets/book_card.dart';
 import '../../models/book.dart';
+import '../../services/database_service.dart';
 import 'post_book_screen.dart';
 import 'book_detail_screen.dart';
 
@@ -14,67 +15,37 @@ class MyListingsScreen extends StatefulWidget {
 }
 
 class _MyListingsScreenState extends State<MyListingsScreen> {
-  List<Book> _myBooks = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMyBooks();
-  }
-
-  Future<void> _loadMyBooks() async {
-    setState(() => _isLoading = true);
-    
-    // TODO: Load user's books from Firestore
-    // Example:
-    // String currentUserId = FirebaseAuth.instance.currentUser!.uid;
-    // QuerySnapshot snapshot = await FirebaseFirestore.instance
-    //     .collection('books')
-    //     .where('ownerId', isEqualTo: currentUserId)
-    //     .orderBy('postedAt', descending: true)
-    //     .get();
-    // 
-    // setState(() {
-    //   _myBooks = snapshot.docs
-    //       .map((doc) => Book.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-    //       .toList();
-    //   _isLoading = false;
-    // });
-    
-    // Dummy data for now
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() {
-      _myBooks = [
-        Book(
-          id: '3',
-          title: 'Database Management',
-          author: 'Ramez Elmasri',
-          condition: 'Good',
-          ownerId: 'currentUser',
-          ownerName: 'Me',
-          postedAt: DateTime.now().subtract(const Duration(days: 5)),
-        ),
-      ];
-      _isLoading = false;
-    });
-  }
+  final DatabaseService _databaseService = DatabaseService();
+  final String? _currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
   Future<void> _deleteBook(String bookId) async {
-    // TODO: Delete book from Firestore
-    // await FirebaseFirestore.instance.collection('books').doc(bookId).delete();
-    
-    setState(() {
-      _myBooks.removeWhere((book) => book.id == bookId);
-    });
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Book deleted successfully'),
-          backgroundColor: AppColors.secondary,
-        ),
-      );
+    try {
+      bool success = await _databaseService.deleteBook(bookId);
+      
+      if (mounted && success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Book deleted successfully'),
+            backgroundColor: AppColors.secondary,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to delete book'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -109,6 +80,27 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_currentUserId == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.primary,
+          elevation: 0,
+          title: const Text(
+            'My Listings',
+            style: TextStyle(
+              color: AppColors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        body: const Center(
+          child: Text('Please log in to view your listings'),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -131,93 +123,142 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                 MaterialPageRoute(
                   builder: (context) => const PostBookScreen(),
                 ),
-              ).then((_) => _loadMyBooks());
+              );
             },
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(
+      body: StreamBuilder<List<Book>>(
+        stream: _databaseService.getUserBooksStream(_currentUserId!),
+        builder: (context, snapshot) {
+          // Loading state
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
               child: CircularProgressIndicator(
                 color: AppColors.secondary,
               ),
-            )
-          : _myBooks.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.library_books_outlined,
-                        size: 80,
-                        color: AppColors.textLight.withOpacity(0.5),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No books listed',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: AppColors.textLight,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Tap + to add your first book',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textLight.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
+            );
+          }
+
+          // Error state
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red.withOpacity(0.5),
                   ),
-                )
-              : RefreshIndicator(
-                  color: AppColors.secondary,
-                  onRefresh: _loadMyBooks,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _myBooks.length,
-                    itemBuilder: (context, index) {
-                      final book = _myBooks[index];
-                      return Dismissible(
-                        key: Key(book.id),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading your books',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: AppColors.textLight,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    snapshot.error.toString(),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textLight.withOpacity(0.7),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Empty state
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.library_books_outlined,
+                    size: 80,
+                    color: AppColors.textLight.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No books listed',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: AppColors.textLight,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tap + to add your first book',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textLight.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Books list
+          final myBooks = snapshot.data!;
+          return RefreshIndicator(
+            color: AppColors.secondary,
+            onRefresh: () async {
+              // The stream will automatically refresh
+              await Future.delayed(const Duration(milliseconds: 500));
+            },
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: myBooks.length,
+              itemBuilder: (context, index) {
+                final book = myBooks[index];
+                return Dismissible(
+                  key: Key(book.id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.delete,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                  confirmDismiss: (direction) async {
+                    _showDeleteDialog(book);
+                    return false; // Don't dismiss automatically
+                  },
+                  child: BookCard(
+                    book: book,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => BookDetailScreen(
+                            book: book,
+                            isOwner: true,
                           ),
-                          child: const Icon(
-                            Icons.delete,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                        confirmDismiss: (direction) async {
-                          _showDeleteDialog(book);
-                          return false;
-                        },
-                        child: BookCard(
-                          book: book,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => BookDetailScreen(
-                                  book: book,
-                                  isOwner: true,
-                                ),
-                              ),
-                            ).then((_) => _loadMyBooks());
-                          },
                         ),
                       );
                     },
                   ),
-                ),
+                );
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 }

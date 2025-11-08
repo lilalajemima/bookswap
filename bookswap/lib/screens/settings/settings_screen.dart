@@ -1,6 +1,8 @@
-// lib/screens/settings/settings_screen.dart
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../utils/constants.dart';
+import '../../services/auth_service.dart';
+import '../auth/login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -10,10 +12,12 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final AuthService _authService = AuthService();
   bool _notificationReminders = true;
   bool _emailUpdates = false;
-  String _userName = 'John Doe';
-  String _userEmail = 'john.doe@example.com';
+  String _userName = 'User';
+  String _userEmail = '';
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -22,32 +26,98 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadUserData() async {
-    // TODO: Load user data from Firebase
-    // Example:
-    // User? user = FirebaseAuth.instance.currentUser;
-    // if (user != null) {
-    //   DocumentSnapshot doc = await FirebaseFirestore.instance
-    //       .collection('users')
-    //       .doc(user.uid)
-    //       .get();
-    //   
-    //   setState(() {
-    //     _userName = user.displayName ?? 'User';
-    //     _userEmail = user.email ?? '';
-    //     _notificationReminders = doc['notificationReminders'] ?? true;
-    //     _emailUpdates = doc['emailUpdates'] ?? false;
-    //   });
-    // }
+    setState(() => _isLoading = true);
+
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      
+      if (user != null) {
+        // Get user data from Firestore
+        Map<String, dynamic>? userData = await _authService.getUserData(user.uid);
+
+        if (mounted) {
+          setState(() {
+            _userName = user.displayName ?? 'User';
+            _userEmail = user.email ?? '';
+            
+            if (userData != null) {
+              _notificationReminders = userData['notificationReminders'] ?? true;
+              _emailUpdates = userData['emailUpdates'] ?? false;
+            }
+            
+            _isLoading = false;
+          });
+        }
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+      setState(() => _isLoading = false);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading settings: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _updateNotificationSettings(String key, bool value) async {
-    // TODO: Update settings in Firestore
-    // Example:
-    // String userId = FirebaseAuth.instance.currentUser!.uid;
-    // await FirebaseFirestore.instance
-    //     .collection('users')
-    //     .doc(userId)
-    //     .update({key: value});
+    try {
+      String? userId = FirebaseAuth.instance.currentUser?.uid;
+      
+      if (userId != null) {
+        bool success = await _authService.updateUserSettings(userId, {key: value});
+        
+        if (success && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Settings updated'),
+              backgroundColor: AppColors.secondary,
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        } else if (!success && mounted) {
+          // Revert the switch if update failed
+          setState(() {
+            if (key == 'notificationReminders') {
+              _notificationReminders = !value;
+            } else if (key == 'emailUpdates') {
+              _emailUpdates = !value;
+            }
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to update settings'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Revert the switch on error
+      setState(() {
+        if (key == 'notificationReminders') {
+          _notificationReminders = !value;
+        } else if (key == 'emailUpdates') {
+          _emailUpdates = !value;
+        }
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _handleLogout() async {
@@ -66,18 +136,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(
             onPressed: () async {
-              // TODO: Implement logout
-              // await FirebaseAuth.instance.signOut();
-              Navigator.pop(context);
+              Navigator.pop(context); // Close dialog
               
-              // Navigate to login screen
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Logout functionality - Connect to Firebase'),
-                    backgroundColor: AppColors.secondary,
-                  ),
-                );
+              try {
+                await _authService.signOut();
+                
+                if (mounted) {
+                  // Navigate to login screen and remove all previous routes
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Logout failed: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             },
             child: const Text(
@@ -179,103 +258,148 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: AppColors.secondary,
+              ),
+            )
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
 
-            // Profile Section
-            _buildSettingsSection(
-              'PROFILE',
-              [
-                _buildSettingsTile(
-                  icon: Icons.person,
-                  title: _userName,
-                  subtitle: _userEmail,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Notifications Section
-            _buildSettingsSection(
-              'NOTIFICATIONS',
-              [
-                _buildSettingsTile(
-                  icon: Icons.notifications_outlined,
-                  title: 'Notification reminders',
-                  subtitle: 'Get notified about swap requests',
-                  trailing: Switch(
-                    value: _notificationReminders,
-                    onChanged: (value) {
-                      setState(() {
-                        _notificationReminders = value;
-                      });
-                      _updateNotificationSettings('notificationReminders', value);
-                    },
-                    activeColor: AppColors.accent,
+                  // Profile Section
+                  _buildSettingsSection(
+                    'PROFILE',
+                    [
+                      _buildSettingsTile(
+                        icon: Icons.person,
+                        title: _userName,
+                        subtitle: _userEmail,
+                      ),
+                    ],
                   ),
-                ),
-                const Divider(height: 1),
-                _buildSettingsTile(
-                  icon: Icons.email_outlined,
-                  title: 'Email Updates',
-                  subtitle: 'Receive updates via email',
-                  trailing: Switch(
-                    value: _emailUpdates,
-                    onChanged: (value) {
-                      setState(() {
-                        _emailUpdates = value;
-                      });
-                      _updateNotificationSettings('emailUpdates', value);
-                    },
-                    activeColor: AppColors.accent,
-                  ),
-                ),
-              ],
-            ),
 
-            const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-            // Logout Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _handleLogout,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.shade50,
-                    foregroundColor: Colors.red,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.logout),
-                      SizedBox(width: 8),
-                      Text(
-                        'Logout',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                  // Notifications Section
+                  _buildSettingsSection(
+                    'NOTIFICATIONS',
+                    [
+                      _buildSettingsTile(
+                        icon: Icons.notifications_outlined,
+                        title: 'Notification reminders',
+                        subtitle: 'Get notified about swap requests',
+                        trailing: Switch(
+                          value: _notificationReminders,
+                          onChanged: (value) {
+                            setState(() {
+                              _notificationReminders = value;
+                            });
+                            _updateNotificationSettings('notificationReminders', value);
+                          },
+                          activeColor: AppColors.accent,
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      _buildSettingsTile(
+                        icon: Icons.email_outlined,
+                        title: 'Email Updates',
+                        subtitle: 'Receive updates via email',
+                        trailing: Switch(
+                          value: _emailUpdates,
+                          onChanged: (value) {
+                            setState(() {
+                              _emailUpdates = value;
+                            });
+                            _updateNotificationSettings('emailUpdates', value);
+                          },
+                          activeColor: AppColors.accent,
                         ),
                       ),
                     ],
                   ),
-                ),
+
+                  const SizedBox(height: 24),
+
+                  // Account Section
+                  _buildSettingsSection(
+                    'ACCOUNT',
+                    [
+                      _buildSettingsTile(
+                        icon: Icons.verified_user,
+                        title: 'Email Verification',
+                        subtitle: FirebaseAuth.instance.currentUser?.emailVerified == true
+                            ? 'Email verified'
+                            : 'Email not verified',
+                        trailing: FirebaseAuth.instance.currentUser?.emailVerified == true
+                            ? const Icon(Icons.check_circle, color: Colors.green)
+                            : TextButton(
+                                onPressed: () async {
+                                  final result = await _authService.resendVerificationEmail();
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          result['message'] ?? result['error'] ?? 'Unknown error',
+                                        ),
+                                        backgroundColor: result['success']
+                                            ? AppColors.secondary
+                                            : Colors.red,
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: const Text(
+                                  'Resend',
+                                  style: TextStyle(color: AppColors.secondary),
+                                ),
+                              ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Logout Button
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _handleLogout,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red.shade50,
+                          foregroundColor: Colors.red,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.logout),
+                            SizedBox(width: 8),
+                            Text(
+                              'Logout',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+                ],
               ),
             ),
-
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
     );
   }
 }

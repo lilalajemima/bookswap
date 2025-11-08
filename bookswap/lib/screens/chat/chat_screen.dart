@@ -1,8 +1,9 @@
-// lib/screens/chat/chat_screen.dart
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../utils/constants.dart';
 import '../../models/chat_message.dart';
+import '../../services/database_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final String recipientId;
@@ -21,13 +22,16 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
-  List<ChatMessage> _messages = [];
-  bool _isLoading = true;
+  final DatabaseService _databaseService = DatabaseService();
+  final String? _currentUserId = FirebaseAuth.instance.currentUser?.uid;
+  String? _chatId;
 
   @override
   void initState() {
     super.initState();
-    _loadMessages();
+    if (_currentUserId != null) {
+      _chatId = _databaseService.getChatId(_currentUserId!, widget.recipientId);
+    }
   }
 
   @override
@@ -35,62 +39,6 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadMessages() async {
-    setState(() => _isLoading = true);
-
-    // TODO: Load messages from Firestore
-    // Example:
-    // String currentUserId = FirebaseAuth.instance.currentUser!.uid;
-    // String chatId = _getChatId(currentUserId, widget.recipientId);
-    //
-    // QuerySnapshot snapshot = await FirebaseFirestore.instance
-    //     .collection('messages')
-    //     .where('chatId', isEqualTo: chatId)
-    //     .orderBy('timestamp', descending: false)
-    //     .get();
-    //
-    // setState(() {
-    //   _messages = snapshot.docs
-    //       .map((doc) => ChatMessage.fromMap(
-    //           doc.data() as Map<String, dynamic>, doc.id))
-    //       .toList();
-    //   _isLoading = false;
-    // });
-
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() {
-      _messages = [
-        ChatMessage(
-          id: '1',
-          chatId: 'chat1',
-          senderId: widget.recipientId,
-          senderName: widget.recipientName,
-          message: 'Hi, are you interested in finding?',
-          timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-        ),
-        ChatMessage(
-          id: '2',
-          chatId: 'chat1',
-          senderId: 'currentUser',
-          senderName: 'Me',
-          message: "Yes, I'm interested!",
-          timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 58)),
-        ),
-        ChatMessage(
-          id: '3',
-          chatId: 'chat1',
-          senderId: widget.recipientId,
-          senderName: widget.recipientName,
-          message: 'Great! When can we meet?',
-          timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 55)),
-        ),
-      ];
-      _isLoading = false;
-    });
-
-    _scrollToBottom();
   }
 
   void _scrollToBottom() {
@@ -106,44 +54,55 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty) return;
+    if (_messageController.text.trim().isEmpty || _currentUserId == null) return;
 
     final messageText = _messageController.text.trim();
     _messageController.clear();
 
-    // TODO: Send message to Firestore
-    // Example:
-    // String currentUserId = FirebaseAuth.instance.currentUser!.uid;
-    // String currentUserName = FirebaseAuth.instance.currentUser!.displayName ?? 'User';
-    // String chatId = _getChatId(currentUserId, widget.recipientId);
-    //
-    // await FirebaseFirestore.instance.collection('messages').add({
-    //   'chatId': chatId,
-    //   'senderId': currentUserId,
-    //   'senderName': currentUserName,
-    //   'message': messageText,
-    //   'timestamp': DateTime.now().toIso8601String(),
-    // });
-    //
-    // // Update chat document
-    // await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
-    //   'participants': [currentUserId, widget.recipientId],
-    //   'lastMessage': messageText,
-    //   'lastMessageTime': DateTime.now().toIso8601String(),
-    // }, SetOptions(merge: true));
+    try {
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      
+      if (currentUser == null || _chatId == null) {
+        throw Exception('User not logged in or chat ID not generated');
+      }
 
-    setState(() {
-      _messages.add(ChatMessage(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        chatId: 'chat1',
-        senderId: 'currentUser',
-        senderName: 'Me',
+      ChatMessage message = ChatMessage(
+        id: '', // Firestore will generate this
+        chatId: _chatId!,
+        senderId: currentUser.uid,
+        senderName: currentUser.displayName ?? 'User',
         message: messageText,
         timestamp: DateTime.now(),
-      ));
-    });
+      );
 
-    _scrollToBottom();
+      bool success = await _databaseService.sendMessage(message, widget.recipientId);
+
+      if (!success) {
+        throw Exception('Failed to send message');
+      }
+
+      // Scroll to bottom after sending
+      _scrollToBottom();
+    } catch (e) {
+      // Show error but add message back to text field
+      _messageController.text = messageText;
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending message: $e'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () {
+                _sendMessage();
+              },
+            ),
+          ),
+        );
+      }
+    }
   }
 
   String _formatMessageTime(DateTime time) {
@@ -191,7 +150,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Text(
               _formatMessageTime(message.timestamp),
               style: TextStyle(
-                color: isMe 
+                color: isMe
                     ? AppColors.textDark.withOpacity(0.6)
                     : AppColors.white.withOpacity(0.7),
                 fontSize: 11,
@@ -205,6 +164,31 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_currentUserId == null || _chatId == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.primary,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: AppColors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text(
+            'Chat',
+            style: TextStyle(
+              color: AppColors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        body: const Center(
+          child: Text('Please log in to chat'),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -228,12 +212,15 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            Text(
-              widget.recipientName,
-              style: const TextStyle(
-                color: AppColors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+            Expanded(
+              child: Text(
+                widget.recipientName,
+                style: const TextStyle(
+                  color: AppColors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -241,53 +228,106 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // Messages List
+          // Messages List with StreamBuilder for real-time updates
           Expanded(
-            child: _isLoading
-                ? const Center(
+            child: StreamBuilder<List<ChatMessage>>(
+              stream: _databaseService.getMessagesStream(_chatId!),
+              builder: (context, snapshot) {
+                // Auto-scroll when new messages arrive
+                if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _scrollToBottom();
+                  });
+                }
+
+                // Loading state
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
                     child: CircularProgressIndicator(
                       color: AppColors.secondary,
                     ),
-                  )
-                : _messages.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.chat_bubble_outline,
-                              size: 64,
-                              color: AppColors.textLight.withOpacity(0.5),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No messages yet',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: AppColors.textLight,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Start the conversation!',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textLight.withOpacity(0.7),
-                              ),
-                            ),
-                          ],
+                  );
+                }
+
+                // Error state
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red.withOpacity(0.5),
                         ),
-                      )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          final message = _messages[index];
-                          final isMe = message.senderId == 'currentUser';
-                          return _buildMessage(message, isMe);
-                        },
-                      ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading messages',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppColors.textLight,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          snapshot.error.toString(),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textLight.withOpacity(0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                // Empty state
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 64,
+                          color: AppColors.textLight.withOpacity(0.5),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No messages yet',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppColors.textLight,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Start the conversation!',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textLight.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                // Messages list
+                final messages = snapshot.data!;
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final isMe = message.senderId == _currentUserId;
+                    return _buildMessage(message, isMe);
+                  },
+                );
+              },
+            ),
           ),
 
           // Message Input
@@ -326,6 +366,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                         maxLines: null,
                         textCapitalization: TextCapitalization.sentences,
+                        onSubmitted: (_) => _sendMessage(),
                       ),
                     ),
                   ),
