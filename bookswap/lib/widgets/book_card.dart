@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/book.dart';
@@ -43,6 +44,54 @@ class BookCard extends StatelessWidget {
     }
   }
 
+  Widget _buildBookImage() {
+    if (book.imageUrl == null) {
+      return const Icon(
+        Icons.book,
+        color: AppColors.white,
+        size: 40,
+      );
+    }
+
+    // Check if it's a Base64 image
+    if (book.imageUrl!.startsWith('data:image')) {
+      try {
+        final base64String = book.imageUrl!.split(',')[1];
+        final bytes = base64Decode(base64String);
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(
+              Icons.broken_image,
+              color: AppColors.white,
+              size: 40,
+            );
+          },
+        );
+      } catch (e) {
+        return const Icon(
+          Icons.broken_image,
+          color: AppColors.white,
+          size: 40,
+        );
+      }
+    }
+
+    // Otherwise it's a network image
+    return Image.network(
+      book.imageUrl!,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return const Icon(
+          Icons.broken_image,
+          color: AppColors.white,
+          size: 40,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -67,20 +116,11 @@ class BookCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.secondary,
                   borderRadius: BorderRadius.circular(8),
-                  image: book.imageUrl != null
-                      ? DecorationImage(
-                          image: NetworkImage(book.imageUrl!),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
                 ),
-                child: book.imageUrl == null
-                    ? const Icon(
-                        Icons.book,
-                        color: AppColors.white,
-                        size: 40,
-                      )
-                    : null,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: _buildBookImage(),
+                ),
               ),
               const SizedBox(width: 12),
               // Book Details

@@ -10,11 +10,11 @@ dependencies:
   flutter:
     sdk: flutter
   
-  # Firebase - Updated to compatible versions
+  # Firebase - Updated to compatible versions (NO STORAGE)
   firebase_core: ^2.27.0
   firebase_auth: ^4.17.8
   cloud_firestore: ^4.15.8
-  firebase_storage: ^11.6.9
+  # firebase_storage: ^11.6.9  # REMOVED - Not needed
   
   # State Management
   provider: ^6.1.1
