@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../utils/constants.dart';
 import '../../models/book.dart';
 import 'post_book_screen.dart';
@@ -25,18 +27,87 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
   Future<void> _initiateSwap() async {
     setState(() => _isLoading = true);
 
-    // TODO: Create swap offer in Firestore
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() => _isLoading = false);
+    try {
+      String currentUserId = FirebaseAuth.instance.currentUser!.uid;
+      String currentUserName = FirebaseAuth.instance.currentUser!.displayName ?? 'User';
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Swap request sent!'),
-          backgroundColor: AppColors.secondary,
-        ),
-      );
-      Navigator.pop(context);
+      // Create swap offer in Firestore
+      await FirebaseFirestore.instance.collection('swap_offers').add({
+        'bookId': widget.book.id,
+        'bookTitle': widget.book.title,
+        'senderId': currentUserId,
+        'senderName': currentUserName,
+        'recipientId': widget.book.ownerId,
+        'recipientName': widget.book.ownerName,
+        'status': 'Pending',
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+
+      // Update book status
+      await FirebaseFirestore.instance
+          .collection('books')
+          .doc(widget.book.id)
+          .update({'swapStatus': 'Pending'});
+
+      setState(() => _isLoading = false);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Swap request sent!'),
+            backgroundColor: AppColors.secondary,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      print('Error creating swap offer: $e');
+      setState(() => _isLoading = false);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteBook() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Delete the book from Firestore
+      await FirebaseFirestore.instance
+          .collection('books')
+          .doc(widget.book.id)
+          .delete();
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Book deleted successfully!'),
+            backgroundColor: AppColors.secondary,
+          ),
+        );
+        // Go back to previous screen
+        Navigator.pop(context, true); // Return true to indicate deletion
+      }
+    } catch (e) {
+      print('Error deleting book: $e');
+      setState(() => _isLoading = false);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting book: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -64,6 +135,37 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
             child: const Text(
               'Send Request',
               style: TextStyle(color: AppColors.secondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Book'),
+        content: Text(
+          'Are you sure you want to delete "${widget.book.title}"?\n\nThis action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textLight),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteBook();
+            },
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -148,8 +250,17 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                       MaterialPageRoute(
                         builder: (context) => PostBookScreen(book: widget.book),
                       ),
-                    ).then((_) => Navigator.pop(context));
+                    ).then((value) {
+                      // Refresh or go back after edit
+                      if (value == true) {
+                        Navigator.pop(context, true);
+                      }
+                    });
                   },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: AppColors.white),
+                  onPressed: _isLoading ? null : _showDeleteDialog,
                 ),
               ]
             : null,
@@ -288,8 +399,9 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Swap Button (only if not owner)
+                  // Action Buttons
                   if (!widget.isOwner)
+                    // Swap Button for non-owners
                     SizedBox(
                       width: double.infinity,
                       height: 56,
@@ -319,6 +431,47 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),
+                              ),
+                      ),
+                    )
+                  else
+                    // Delete Button for owner (alternative placement)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _showDeleteDialog,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red.shade50,
+                          foregroundColor: Colors.red,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.red),
+                                ),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.delete_outline),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Delete Listing',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                       ),
                     ),
