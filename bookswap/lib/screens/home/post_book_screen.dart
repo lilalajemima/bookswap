@@ -1,4 +1,3 @@
-// lib/screens/home/post_book_screen.dart
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -10,6 +9,9 @@ import '../../utils/validators.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../models/book.dart';
+
+// this screen allows users to create new book listings or edit existing ones. 
+//it provides form fields for book details, supports image selection from gallery, converts images to base64 for storage, validates all inputs before submission, and updates firestore with the book data.
 
 class PostBookScreen extends StatefulWidget {
   final Book? book;
@@ -24,6 +26,7 @@ class _PostBookScreenState extends State<PostBookScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _authorController = TextEditingController();
+  
   String _selectedCondition = 'Used';
   File? _imageFile;
   bool _isLoading = false;
@@ -39,6 +42,7 @@ class _PostBookScreenState extends State<PostBookScreen> {
     }
   }
 
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -50,9 +54,9 @@ class _PostBookScreenState extends State<PostBookScreen> {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 400, // Keep it small for Base64
+        maxWidth: 400,
         maxHeight: 400,
-        imageQuality: 70, // Reduce quality to keep size down
+        imageQuality: 70,
       );
 
       if (pickedFile != null) {
@@ -72,6 +76,7 @@ class _PostBookScreenState extends State<PostBookScreen> {
     }
   }
 
+  // method to convert image file to base64 string
   Future<String?> _convertImageToBase64(File imageFile) async {
     try {
       final bytes = await imageFile.readAsBytes();
@@ -83,6 +88,7 @@ class _PostBookScreenState extends State<PostBookScreen> {
     }
   }
 
+  // method to handle form submission
   Future<void> _handleSubmit() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
@@ -90,7 +96,7 @@ class _PostBookScreenState extends State<PostBookScreen> {
       try {
         String? imageUrl;
         
-        // Convert image to base64 if one was selected
+
         if (_imageFile != null) {
           imageUrl = await _convertImageToBase64(_imageFile!);
           if (imageUrl == null) {
@@ -102,7 +108,6 @@ class _PostBookScreenState extends State<PostBookScreen> {
         String currentUserName = FirebaseAuth.instance.currentUser!.displayName ?? 'User';
 
         if (widget.book == null) {
-          // Create new book
           await FirebaseFirestore.instance.collection('books').add({
             'title': _titleController.text.trim(),
             'author': _authorController.text.trim(),
@@ -114,7 +119,6 @@ class _PostBookScreenState extends State<PostBookScreen> {
             'swapStatus': null,
           });
         } else {
-          // Update existing book
           Map<String, dynamic> updateData = {
             'title': _titleController.text.trim(),
             'author': _authorController.text.trim(),
@@ -158,6 +162,7 @@ class _PostBookScreenState extends State<PostBookScreen> {
     }
   }
 
+  // build method to create ui
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -186,6 +191,7 @@ class _PostBookScreenState extends State<PostBookScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+
                 Center(
                   child: GestureDetector(
                     onTap: _pickImage,
@@ -243,6 +249,7 @@ class _PostBookScreenState extends State<PostBookScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+                
                 CustomTextField(
                   label: 'Book Title',
                   controller: _titleController,
@@ -250,6 +257,7 @@ class _PostBookScreenState extends State<PostBookScreen> {
                       Validators.validateRequired(value, 'Book title'),
                 ),
                 const SizedBox(height: 16),
+                
                 CustomTextField(
                   label: 'Author',
                   controller: _authorController,
@@ -257,6 +265,8 @@ class _PostBookScreenState extends State<PostBookScreen> {
                       Validators.validateRequired(value, 'Author'),
                 ),
                 const SizedBox(height: 24),
+                
+
                 const Text(
                   'Condition',
                   style: TextStyle(
@@ -308,6 +318,8 @@ class _PostBookScreenState extends State<PostBookScreen> {
                   }).toList(),
                 ),
                 const SizedBox(height: 32),
+                
+
                 CustomButton(
                   text: widget.book == null ? 'Post' : 'Update',
                   onPressed: _handleSubmit,

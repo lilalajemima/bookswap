@@ -5,6 +5,9 @@ import '../../utils/constants.dart';
 import '../../models/chat_message.dart';
 import '../../services/database_service.dart';
 
+// this screen provides a real-time chat interface between two users. 
+//it displays messages in a conversation format, allows sending new messages, automatically scrolls to show the latest messages, and updates in real-time using firestore streams to sync messages across devices.
+
 class ChatScreen extends StatefulWidget {
   final String recipientId;
   final String recipientName;
@@ -41,6 +44,7 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  // method to scroll to bottom of message list
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -53,6 +57,7 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  // method to send a new message
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty || _currentUserId == null) return;
 
@@ -67,7 +72,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
 
       ChatMessage message = ChatMessage(
-        id: '', // Firestore will generate this
+        id: '',
         chatId: _chatId!,
         senderId: currentUser.uid,
         senderName: currentUser.displayName ?? 'User',
@@ -81,10 +86,8 @@ class _ChatScreenState extends State<ChatScreen> {
         throw Exception('Failed to send message');
       }
 
-      // Scroll to bottom after sending
       _scrollToBottom();
     } catch (e) {
-      // Show error but add message back to text field
       _messageController.text = messageText;
       
       if (mounted) {
@@ -105,6 +108,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // method to format message timestamp
   String _formatMessageTime(DateTime time) {
     final now = DateTime.now();
     final difference = now.difference(time);
@@ -118,6 +122,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // widget to build individual message bubble
   Widget _buildMessage(ChatMessage message, bool isMe) {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -162,6 +167,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  // build method to create ui
   @override
   Widget build(BuildContext context) {
     if (_currentUserId == null || _chatId == null) {
@@ -228,19 +234,16 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // Messages List with StreamBuilder for real-time updates
           Expanded(
             child: StreamBuilder<List<ChatMessage>>(
               stream: _databaseService.getMessagesStream(_chatId!),
               builder: (context, snapshot) {
-                // Auto-scroll when new messages arrive
                 if (snapshot.hasData && snapshot.data!.isNotEmpty) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     _scrollToBottom();
                   });
                 }
 
-                // Loading state
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: CircularProgressIndicator(
@@ -249,7 +252,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
                 }
 
-                // Error state
                 if (snapshot.hasError) {
                   return Center(
                     child: Column(
@@ -282,7 +284,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
                 }
 
-                // Empty state
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return Center(
                     child: Column(
@@ -314,7 +315,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
                 }
 
-                // Messages list
                 final messages = snapshot.data!;
                 return ListView.builder(
                   controller: _scrollController,
@@ -329,8 +329,7 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
-
-          // Message Input
+          
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(

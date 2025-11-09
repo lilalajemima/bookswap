@@ -5,6 +5,9 @@ import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../services/auth_service.dart';
 
+// this screen handles new user registration. 
+//it collects user information including name, email, and password, validates all inputs, creates a new firebase authentication account, sends email verification, and provides clear feedback through dialogs and error messages.
+
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
 
@@ -14,11 +17,14 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
+  
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  
   final _authService = AuthService();
+  
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -43,7 +49,6 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _handleSignup() async {
-    // Dismiss keyboard
     FocusScope.of(context).unfocus();
     
     if (!_formKey.currentState!.validate()) {
@@ -66,12 +71,10 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted) return;
 
       if (result['success'] == true) {
-        // CRITICAL: Sign out immediately to prevent auth state issues
         await _authService.signOut();
         
         if (!mounted) return;
         
-        // Show success dialog
         await showDialog(
           context: context,
           barrierDismissible: false,
@@ -115,7 +118,7 @@ class _SignupScreenState extends State<SignupScreen> {
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.of(dialogContext).pop(); // Close dialog
+                  Navigator.of(dialogContext).pop();
                 },
                 child: const Text(
                   'OK',
@@ -130,12 +133,10 @@ class _SignupScreenState extends State<SignupScreen> {
           ),
         );
 
-        // Navigate back to login after dialog closes
         if (mounted) {
           Navigator.of(context).pop();
         }
       } else {
-        // Show error message
         final errorMessage = result['error']?.toString() ?? 'Signup failed';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -160,6 +161,7 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
+  // build method to create ui
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -182,7 +184,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 children: [
                   const SizedBox(height: 20),
 
-                  // Logo
                   Container(
                     width: 80,
                     height: 80,
@@ -210,7 +211,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   const SizedBox(height: 32),
 
-                  // Signup Form
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -221,7 +221,6 @@ class _SignupScreenState extends State<SignupScreen> {
                       key: _formKey,
                       child: Column(
                         children: [
-                          // Name Field
                           CustomTextField(
                             label: 'Full Name',
                             controller: _nameController,
@@ -231,7 +230,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                           const SizedBox(height: 16),
 
-                          // Email Field
                           CustomTextField(
                             label: 'Email',
                             controller: _emailController,
@@ -241,7 +239,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                           const SizedBox(height: 16),
 
-                          // Password Field
                           CustomTextField(
                             label: 'Password',
                             controller: _passwordController,
@@ -264,7 +261,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                           const SizedBox(height: 16),
 
-                          // Confirm Password Field
                           CustomTextField(
                             label: 'Confirm Password',
                             controller: _confirmPasswordController,
@@ -287,7 +283,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                           const SizedBox(height: 24),
 
-                          // Signup Button
                           CustomButton(
                             text: 'Sign Up',
                             onPressed: _isLoading ? () {} : _handleSignup,
@@ -296,7 +291,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                           const SizedBox(height: 16),
 
-                          // Login Link
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [

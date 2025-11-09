@@ -6,6 +6,9 @@ import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
 import '../auth/login_screen.dart';
 
+// this screen provides user settings and preferences management. 
+//it displays user profile information, allows toggling notification preferences for swaps and messages, stores settings in firestore, and provides logout functionality with confirmation.
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
 
@@ -16,6 +19,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final AuthService _authService = AuthService();
   final NotificationService _notificationService = NotificationService();
+  
   bool _swapNotifications = true;
   bool _messageNotifications = true;
   String _userName = 'User';
@@ -40,7 +44,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       User? user = FirebaseAuth.instance.currentUser;
       
       if (user != null) {
-        // Get user data from Firestore
         Map<String, dynamic>? userData = await _authService.getUserData(user.uid);
 
         if (mounted) {
@@ -74,6 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  // method to update notification settings in firestore
   Future<void> _updateNotificationSettings(String key, bool value) async {
     try {
       String? userId = FirebaseAuth.instance.currentUser?.uid;
@@ -89,8 +93,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               duration: const Duration(seconds: 1),
             ),
           );
-        } else if (!success && mounted) {
-          // Revert the switch if update failed
+        } else if (!success && mounted) 
+        {
           setState(() {
             if (key == 'swapNotifications') {
               _swapNotifications = !value;
@@ -107,8 +111,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           );
         }
       }
-    } catch (e) {
-      // Revert the switch on error
+    } 
+    
+    catch (e) {
       setState(() {
         if (key == 'swapNotifications') {
           _swapNotifications = !value;
@@ -128,6 +133,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  // method to handle logout with confirmation
   Future<void> _handleLogout() async {
     showDialog(
       context: context,
@@ -144,13 +150,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context); // Close dialog
+              Navigator.pop(context);
               
               try {
                 await _authService.signOut();
                 
                 if (mounted) {
-                  // Navigate to login screen and remove all previous routes
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(builder: (context) => const LoginScreen()),
                     (route) => false,
@@ -177,6 +182,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // widget to build settings section with title
   Widget _buildSettingsSection(String title, List<Widget> children) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,6 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // widget to build individual settings tile
   Widget _buildSettingsTile({
     required IconData icon,
     required String title,
@@ -250,6 +257,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // build method to create ui
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -277,7 +285,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   const SizedBox(height: 16),
 
-                  // Profile Section
                   _buildSettingsSection(
                     'PROFILE',
                     [
@@ -291,7 +298,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Notifications Section
                   _buildSettingsSection(
                     'NOTIFICATIONS',
                     [
@@ -331,7 +337,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Logout Button
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: SizedBox(

@@ -1,3 +1,7 @@
+// this model represents a single message in a chat conversation between two users. 
+//it stores the message content, sender information, and timestamp. 
+//messages are stored as subcollections under chat documents in firestore.
+
 class ChatMessage {
   final String id;
   final String chatId;
@@ -6,6 +10,7 @@ class ChatMessage {
   final String message;
   final DateTime timestamp;
 
+  // constructor 
   ChatMessage({
     required this.id,
     required this.chatId,
@@ -15,6 +20,7 @@ class ChatMessage {
     required this.timestamp,
   });
 
+  // factory method to create message from firestore document
   factory ChatMessage.fromMap(Map<String, dynamic> map, String id) {
     return ChatMessage(
       id: id,
@@ -26,6 +32,7 @@ class ChatMessage {
     );
   }
 
+  // method to convert message to map for firestore storage
   Map<String, dynamic> toMap() {
     return {
       'chatId': chatId,

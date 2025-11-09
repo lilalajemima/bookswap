@@ -7,6 +7,9 @@ import '../../services/auth_service.dart';
 import 'signup_screen.dart';
 import '../home/home_screen.dart';
 
+// this screen handles user authentication for existing users. 
+//it provides email and password input fields with validation, shows loading states during authentication, handles email verification checks, and allows users to resend verification emails if needed.
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
 
@@ -19,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
+
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -29,8 +33,8 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // method to handle login button press
   Future<void> _handleLogin() async {
-    // Dismiss keyboard
     FocusScope.of(context).unfocus();
     
     if (!_formKey.currentState!.validate()) {
@@ -52,13 +56,11 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (result['success'] == true) {
-        // Navigate to home screen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
       } else {
-        // Show error message
         final errorMessage = result['error']?.toString() ?? 'Login failed';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -90,8 +92,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // method to resend email verification
   Future<void> _resendVerification() async {
-    // Show loading indicator
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Row(
@@ -114,13 +116,11 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     try {
-      // First, try to sign in to get the user object
       await _authService.signIn(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      // Now resend verification
       final result = await _authService.resendVerificationEmail();
 
       if (mounted) {
@@ -139,7 +139,6 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
 
-      // Sign out again
       await _authService.signOut();
     } catch (e) {
       if (mounted) {
@@ -154,6 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // build method to create ui
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -169,7 +169,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const SizedBox(height: 60),
 
-                  // Logo
                   Container(
                     width: 100,
                     height: 100,
@@ -185,8 +184,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
 
                   const SizedBox(height: 24),
-
-                  // App Name
                   const Text(
                     AppConstants.appName,
                     style: TextStyle(
@@ -198,7 +195,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 8),
 
-                  // Tagline
                   const Text(
                     AppConstants.appTagline,
                     style: TextStyle(
@@ -210,7 +206,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 48),
 
-                  // Login Form
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -233,7 +228,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 24),
 
-                          // Email Field
                           CustomTextField(
                             label: 'Email',
                             controller: _emailController,
@@ -243,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 16),
 
-                          // Password Field
+                          // password input field with visibility toggle
                           CustomTextField(
                             label: 'Password',
                             controller: _passwordController,
@@ -266,7 +260,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 24),
 
-                          // Login Button
+                          // login button
                           CustomButton(
                             text: 'Sign In',
                             onPressed: _isLoading ? () {} : _handleLogin,
@@ -275,7 +269,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 16),
 
-                          // Sign Up Link
+                          // navigation to signup screen
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [

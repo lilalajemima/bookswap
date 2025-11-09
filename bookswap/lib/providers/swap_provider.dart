@@ -4,6 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/swap_offer.dart';
 import '../models/book.dart';
 
+// this provider manages all swap-related operations and book listings using provider state management. 
+//it handles creating swap offers, accepting or rejecting offers, and provides real-time streams for books and offers. 
+//this is the central state management class for the swap functionality.
+
 class SwapProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -18,7 +22,6 @@ class SwapProvider with ChangeNotifier {
   List<Book> get myBooks => _myBooks;
   bool get isLoading => _isLoading;
 
-  // Real-time listener for sent offers
   Stream<List<SwapOffer>> watchSentOffers() {
     final currentUserId = _auth.currentUser?.uid;
     if (currentUserId == null) return Stream.value([]);
@@ -36,7 +39,7 @@ class SwapProvider with ChangeNotifier {
     });
   }
 
-  // Real-time listener for received offers
+  // real-time stream of swap offers received by current user
   Stream<List<SwapOffer>> watchReceivedOffers() {
     final currentUserId = _auth.currentUser?.uid;
     if (currentUserId == null) return Stream.value([]);
@@ -54,7 +57,7 @@ class SwapProvider with ChangeNotifier {
     });
   }
 
-  // Create swap offer
+  // method to create a new swap offer
   Future<bool> createSwapOffer({
     required String bookId,
     required String bookTitle,
@@ -71,7 +74,7 @@ class SwapProvider with ChangeNotifier {
       }
 
       final offer = SwapOffer(
-        id: '', // Firestore will generate
+        id: '', 
         bookId: bookId,
         bookTitle: bookTitle,
         senderId: currentUser.uid,
@@ -82,11 +85,10 @@ class SwapProvider with ChangeNotifier {
         createdAt: DateTime.now(),
       );
 
-      // Create offer in Firestore
+  
       final docRef =
           await _firestore.collection('swap_offers').add(offer.toMap());
 
-      // Update book status to Pending
       await _firestore.collection('books').doc(bookId).update({
         'swapStatus': 'Pending',
       });
@@ -102,18 +104,16 @@ class SwapProvider with ChangeNotifier {
     }
   }
 
-  // Accept swap offer
+  // method to accept a swap offer
   Future<bool> acceptSwapOffer(String offerId, String bookId) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Update offer status
       await _firestore.collection('swap_offers').doc(offerId).update({
         'status': 'Accepted',
       });
 
-      // Update book status
       await _firestore.collection('books').doc(bookId).update({
         'swapStatus': 'Accepted',
       });
@@ -129,18 +129,16 @@ class SwapProvider with ChangeNotifier {
     }
   }
 
-  // Reject swap offer
+  // method to reject a swap offer
   Future<bool> rejectSwapOffer(String offerId, String bookId) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Update offer status
       await _firestore.collection('swap_offers').doc(offerId).update({
         'status': 'Rejected',
       });
 
-      // Update book status back to null (available)
       await _firestore.collection('books').doc(bookId).update({
         'swapStatus': null,
       });
@@ -156,7 +154,7 @@ class SwapProvider with ChangeNotifier {
     }
   }
 
-  // Load user's books with real-time updates
+  // real-time stream of books owned by current user
   Stream<List<Book>> watchMyBooks() {
     final currentUserId = _auth.currentUser?.uid;
     if (currentUserId == null) return Stream.value([]);
@@ -174,7 +172,7 @@ class SwapProvider with ChangeNotifier {
     });
   }
 
-  // Load all books with real-time updates
+  // real-time stream of all books in the marketplace
   Stream<List<Book>> watchAllBooks() {
     return _firestore
         .collection('books')
@@ -188,16 +186,14 @@ class SwapProvider with ChangeNotifier {
     });
   }
 
-  // Cancel/Delete swap offer
+  // method to cancel or delete a pending swap offer
   Future<bool> cancelSwapOffer(String offerId, String bookId) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Delete the offer document
       await _firestore.collection('swap_offers').doc(offerId).delete();
 
-      // Update book status back to null (available)
       await _firestore.collection('books').doc(bookId).update({
         'swapStatus': null,
       });

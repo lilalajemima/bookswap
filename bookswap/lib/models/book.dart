@@ -1,3 +1,7 @@
+// this model represents a book listing in the bookswap marketplace. 
+//it contains all the necessary information about a book including its owner details, condition, and swap status. 
+//the model provides methods to convert between dart objects and firestore documents for seamless database operations.
+
 class Book {
   final String id;
   final String title;
@@ -7,8 +11,9 @@ class Book {
   final String ownerId;
   final String ownerName;
   final DateTime postedAt;
-  final String? swapStatus; // null, 'Pending', 'Accepted', 'Rejected'
+  final String? swapStatus; 
 
+  // constructor 
   Book({
     required this.id,
     required this.title,
@@ -21,6 +26,7 @@ class Book {
     this.swapStatus,
   });
 
+  // factory method to create a book object from firestore document data
   factory Book.fromMap(Map<String, dynamic> map, String id) {
     return Book(
       id: id,
@@ -35,6 +41,7 @@ class Book {
     );
   }
 
+  // method to convert book object to map for firestore storage
   Map<String, dynamic> toMap() {
     return {
       'title': title,
@@ -48,6 +55,7 @@ class Book {
     };
   }
 
+  // method to create a copy of book with updated fields
   Book copyWith({
     String? id,
     String? title,

@@ -7,6 +7,9 @@ import '../../providers/swap_provider.dart';
 import 'post_book_screen.dart';
 import 'book_detail_screen.dart';
 
+// this screen displays all book listings from all users in the marketplace. 
+//it uses a real-time stream to show books as they are posted, allows users to browse available books, and provides navigation to view book details or post new books.
+
 class BrowseListingsScreen extends StatelessWidget {
   const BrowseListingsScreen({Key? key}) : super(key: key);
 
@@ -51,6 +54,7 @@ class BrowseListingsScreen extends StatelessWidget {
               ),
             );
           }
+
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return Center(

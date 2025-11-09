@@ -4,6 +4,10 @@ import '../../utils/constants.dart';
 import '../../services/database_service.dart';
 import 'chat_screen.dart';
 
+// this screen displays a list of all active chat conversations for the current user. 
+//it shows chat previews with the last message, recipient name, and timestamp. 
+//users can tap on any chat to open the full conversation and the list updates in real-time as new messages arrive.
+
 class ChatsListScreen extends StatefulWidget {
   const ChatsListScreen({Key? key}) : super(key: key);
 
@@ -12,6 +16,7 @@ class ChatsListScreen extends StatefulWidget {
 }
 
 class _ChatsListScreenState extends State<ChatsListScreen> {
+
   final DatabaseService _databaseService = DatabaseService();
   final String? _currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
@@ -31,10 +36,8 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
   }
 
   String _getRecipientName(Map<String, dynamic> chat) {
-    // Get the other participant's name
     List participants = chat['participants'] ?? [];
     
-    // Find the other user's ID
     String? otherUserId;
     for (var participantId in participants) {
       if (participantId != _currentUserId) {
@@ -43,15 +46,13 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
       }
     }
 
-    // If the last message was sent by the other user, use lastSenderName
-    // Otherwise, this is a limitation - we'd need to store both user names
     if (chat['lastSenderId'] != _currentUserId && chat['lastSenderName'] != null) {
       return chat['lastSenderName'];
     }
 
-    // Fallback to showing "User" - in production, you'd want to fetch user details
     return 'User';
   }
+
 
   String? _getRecipientId(Map<String, dynamic> chat) {
     List participants = chat['participants'] ?? [];
@@ -65,8 +66,10 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
     return null;
   }
 
+  // build method to create ui
   @override
   Widget build(BuildContext context) {
+
     if (_currentUserId == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
@@ -105,7 +108,6 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _databaseService.getUserChatsStream(_currentUserId!),
         builder: (context, snapshot) {
-          // Loading state
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(
@@ -114,7 +116,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
             );
           }
 
-          // Error state
+
           if (snapshot.hasError) {
             return Center(
               child: Column(
@@ -147,7 +149,6 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
             );
           }
 
-          // Empty state
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return Center(
               child: Column(
@@ -179,12 +180,10 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
             );
           }
 
-          // Chats list
           final chats = snapshot.data!;
           return RefreshIndicator(
             color: AppColors.secondary,
             onRefresh: () async {
-              // The stream will automatically refresh
               await Future.delayed(const Duration(milliseconds: 500));
             },
             child: ListView.builder(
@@ -196,10 +195,9 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                 final recipientId = _getRecipientId(chat);
                 
                 if (recipientId == null) {
-                  return const SizedBox.shrink(); // Skip invalid chats
+                  return const SizedBox.shrink();
                 }
 
-                // Parse last message time
                 DateTime lastMessageTime;
                 try {
                   lastMessageTime = DateTime.parse(chat['lastMessageTime']);
@@ -264,8 +262,6 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                             color: AppColors.textLight,
                           ),
                         ),
-                        // Note: Unread count would require additional Firestore logic
-                        // You'd need to track read/unread status per user
                       ],
                     ),
                     onTap: () {

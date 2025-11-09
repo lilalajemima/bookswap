@@ -7,6 +7,9 @@ import '../../services/database_service.dart';
 import 'post_book_screen.dart';
 import 'book_detail_screen.dart';
 
+// this screen displays all books owned by the current user. 
+//it shows a real-time list of the users book listings, allows deletion of books through swipe gestures or dialog confirmation, and provides navigation to post new books or view book details.
+
 class MyListingsScreen extends StatefulWidget {
   const MyListingsScreen({Key? key}) : super(key: key);
 
@@ -18,6 +21,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
   final DatabaseService _databaseService = DatabaseService();
   final String? _currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
+  // method to delete a book from firestore
   Future<void> _deleteBook(String bookId) async {
     try {
       bool success = await _databaseService.deleteBook(bookId);
@@ -49,6 +53,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     }
   }
 
+  // method to show confirmation dialog before deleting book
   void _showDeleteDialog(Book book) {
     showDialog(
       context: context,
@@ -78,8 +83,10 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     );
   }
 
+  // build method to create ui
   @override
   Widget build(BuildContext context) {
+
     if (_currentUserId == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
@@ -115,6 +122,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
           ),
         ),
         actions: [
+
           IconButton(
             icon: const Icon(Icons.add, color: AppColors.white),
             onPressed: () {
@@ -131,7 +139,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
       body: StreamBuilder<List<Book>>(
         stream: _databaseService.getUserBooksStream(_currentUserId!),
         builder: (context, snapshot) {
-          // Loading state
+
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(
@@ -140,7 +148,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
             );
           }
 
-          // Error state
+
           if (snapshot.hasError) {
             return Center(
               child: Column(
@@ -173,7 +181,6 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
             );
           }
 
-          // Empty state
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return Center(
               child: Column(
@@ -205,12 +212,11 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
             );
           }
 
-          // Books list
+          // books list with swipe to delete
           final myBooks = snapshot.data!;
           return RefreshIndicator(
             color: AppColors.secondary,
             onRefresh: () async {
-              // The stream will automatically refresh
               await Future.delayed(const Duration(milliseconds: 500));
             },
             child: ListView.builder(
@@ -237,7 +243,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                   ),
                   confirmDismiss: (direction) async {
                     _showDeleteDialog(book);
-                    return false; // Don't dismiss automatically
+                    return false;
                   },
                   child: BookCard(
                     book: book,

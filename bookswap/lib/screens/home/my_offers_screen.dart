@@ -6,6 +6,9 @@ import '../../providers/swap_provider.dart';
 import '../chat/chat_screen.dart';
 import 'package:intl/intl.dart';
 
+// this screen displays all swap offers in a tabbed interface showing sent and received offers separately. 
+//it uses streambuilder for real-time updates, allows users to accept or reject incoming offers, enables cancellation of sent offers, and provides navigation to chat with the other party involved in the swap.
+
 class MyOffersScreen extends StatefulWidget {
   const MyOffersScreen({Key? key}) : super(key: key);
 
@@ -17,18 +20,21 @@ class _MyOffersScreenState extends State<MyOffersScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  // initialize tab controller for sent and received tabs
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
   }
 
+  // cleanup tab controller
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
 
+  // method to get appropriate color based on offer status
   Color _getStatusColor(String status) {
     switch (status) {
       case 'Pending':
@@ -42,6 +48,7 @@ class _MyOffersScreenState extends State<MyOffersScreen>
     }
   }
 
+  // method to format date for display
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
@@ -55,6 +62,7 @@ class _MyOffersScreenState extends State<MyOffersScreen>
     }
   }
 
+  // method to show confirmation dialog before canceling offer
   void _showCancelDialog(BuildContext context, SwapOffer offer) {
     showDialog(
       context: context,
@@ -108,11 +116,10 @@ class _MyOffersScreenState extends State<MyOffersScreen>
     );
   }
 
+  // method to build individual offer card widget
   Widget _buildOfferCard(SwapOffer offer, bool isSent) {
-    // Only allow deletion/dismissal for sent offers with Pending status
     final canCancel = isSent && offer.status == 'Pending';
     
-    // Determine who to chat with
     final chatRecipientId = isSent ? offer.recipientId : offer.senderId;
     final chatRecipientName = isSent ? offer.recipientName : offer.senderName;
 
@@ -125,7 +132,6 @@ class _MyOffersScreenState extends State<MyOffersScreen>
       ),
       child: InkWell(
         onTap: () {
-          // Navigate to chat with the other party
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -142,7 +148,6 @@ class _MyOffersScreenState extends State<MyOffersScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Book Title and Status
               Row(
                 children: [
                   Expanded(
@@ -170,7 +175,6 @@ class _MyOffersScreenState extends State<MyOffersScreen>
                       ),
                     ),
                   ),
-                  // Delete button for sent offers with Pending status
                   if (canCancel) ...[
                     const SizedBox(width: 8),
                     IconButton(
@@ -187,7 +191,6 @@ class _MyOffersScreenState extends State<MyOffersScreen>
 
               const SizedBox(height: 12),
 
-              // Sender/Recipient info with chat icon
               Row(
                 children: [
                   CircleAvatar(
@@ -224,7 +227,6 @@ class _MyOffersScreenState extends State<MyOffersScreen>
                       ],
                     ),
                   ),
-                  // Chat icon hint
                   Icon(
                     Icons.chat_bubble_outline,
                     color: AppColors.secondary.withOpacity(0.6),
@@ -233,7 +235,6 @@ class _MyOffersScreenState extends State<MyOffersScreen>
                 ],
               ),
 
-              // Action buttons for received offers with Pending status
               if (!isSent && offer.status == 'Pending') ...[
                 const SizedBox(height: 16),
                 Row(
@@ -283,7 +284,7 @@ class _MyOffersScreenState extends State<MyOffersScreen>
                           if (success && mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Offer accepted! 🎉'),
+                                content: Text('Offer accepted!'),
                                 backgroundColor: AppColors.secondary,
                               ),
                             );
@@ -303,7 +304,6 @@ class _MyOffersScreenState extends State<MyOffersScreen>
                 ),
               ],
 
-              // Hint text for tapping to chat
               if (offer.status == 'Pending' || offer.status == 'Accepted') ...[
                 const SizedBox(height: 12),
                 Center(
@@ -323,7 +323,6 @@ class _MyOffersScreenState extends State<MyOffersScreen>
       ),
     );
 
-    // Wrap with Dismissible for swipe-to-delete (only for sent pending offers)
     if (canCancel) {
       return Dismissible(
         key: Key(offer.id),
@@ -357,7 +356,7 @@ class _MyOffersScreenState extends State<MyOffersScreen>
         ),
         confirmDismiss: (direction) async {
           _showCancelDialog(context, offer);
-          return false; // Don't auto-dismiss, let the dialog handle it
+          return false;
         },
         child: cardContent,
       );
@@ -366,6 +365,7 @@ class _MyOffersScreenState extends State<MyOffersScreen>
     return cardContent;
   }
 
+  // build method to create ui
   @override
   Widget build(BuildContext context) {
     final swapProvider = Provider.of<SwapProvider>(context);
@@ -397,10 +397,10 @@ class _MyOffersScreenState extends State<MyOffersScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Sent Offers Tab
           StreamBuilder<List<SwapOffer>>(
             stream: swapProvider.watchSentOffers(),
             builder: (context, snapshot) {
+
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
                   child: CircularProgressIndicator(color: AppColors.secondary),
@@ -464,7 +464,7 @@ class _MyOffersScreenState extends State<MyOffersScreen>
             },
           ),
 
-          // Received Offers Tab
+
           StreamBuilder<List<SwapOffer>>(
             stream: swapProvider.watchReceivedOffers(),
             builder: (context, snapshot) {
