@@ -10,10 +10,12 @@ plugins {
 
 android {
     namespace = "com.example.bookswap"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36  // Updated to 36 (required by plugins)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // ADDED: Enable core library desugaring
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -23,20 +25,17 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.bookswap"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = flutter.minSdkVersion  // Set to at least 21
+        targetSdk = 34  // Updated to 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // ADDED: Enable multidex
+        multiDexEnabled = true
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -44,4 +43,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// ADDED: Dependencies section for desugaring
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
