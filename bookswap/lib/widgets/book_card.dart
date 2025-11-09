@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/book.dart';
 import '../utils/constants.dart';
 
@@ -9,10 +8,10 @@ class BookCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const BookCard({
-    Key? key,
+    super.key,
     required this.book,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   String _getTimeAgo(DateTime date) {
     final now = DateTime.now();
@@ -99,7 +98,7 @@ class BookCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: AppColors.secondary.withOpacity(0.2)),
+        side: BorderSide(color: AppColors.secondary.withValues(alpha: 0.2)),
       ),
       child: InkWell(
         onTap: onTap,
@@ -141,7 +140,7 @@ class BookCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       book.author,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
                         color: AppColors.textLight,
                       ),
@@ -155,7 +154,7 @@ class BookCard extends StatelessWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: _getConditionColor(book.condition).withOpacity(0.2),
+                            color: _getConditionColor(book.condition).withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -168,7 +167,7 @@ class BookCard extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
-                        Icon(
+                        const Icon(
                           Icons.access_time,
                           size: 14,
                           color: AppColors.textLight,
@@ -176,7 +175,7 @@ class BookCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           _getTimeAgo(book.postedAt),
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textLight,
                           ),

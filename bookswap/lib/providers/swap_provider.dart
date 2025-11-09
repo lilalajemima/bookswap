@@ -12,9 +12,9 @@ class SwapProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  List<SwapOffer> _sentOffers = [];
-  List<SwapOffer> _receivedOffers = [];
-  List<Book> _myBooks = [];
+  final List<SwapOffer> _sentOffers = [];
+  final List<SwapOffer> _receivedOffers = [];
+  final List<Book> _myBooks = [];
   bool _isLoading = false;
 
   List<SwapOffer> get sentOffers => _sentOffers;
@@ -34,7 +34,7 @@ class SwapProvider with ChangeNotifier {
         .map((snapshot) {
       return snapshot.docs
           .map((doc) =>
-              SwapOffer.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+              SwapOffer.fromMap(doc.data(), doc.id))
           .toList();
     });
   }
@@ -52,7 +52,7 @@ class SwapProvider with ChangeNotifier {
         .map((snapshot) {
       return snapshot.docs
           .map((doc) =>
-              SwapOffer.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+              SwapOffer.fromMap(doc.data(), doc.id))
           .toList();
     });
   }
@@ -85,9 +85,8 @@ class SwapProvider with ChangeNotifier {
         createdAt: DateTime.now(),
       );
 
-  
-      final docRef =
-          await _firestore.collection('swap_offers').add(offer.toMap());
+      // Add to Firestore
+      await _firestore.collection('swap_offers').add(offer.toMap());
 
       await _firestore.collection('books').doc(bookId).update({
         'swapStatus': 'Pending',
@@ -97,7 +96,7 @@ class SwapProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      print('Error creating swap offer: $e');
+      debugPrint('Error creating swap offer: $e');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -122,7 +121,7 @@ class SwapProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      print('Error accepting swap offer: $e');
+      debugPrint('Error accepting swap offer: $e');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -147,7 +146,7 @@ class SwapProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      print('Error rejecting swap offer: $e');
+      debugPrint('Error rejecting swap offer: $e');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -167,7 +166,7 @@ class SwapProvider with ChangeNotifier {
         .map((snapshot) {
       return snapshot.docs
           .map(
-              (doc) => Book.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+              (doc) => Book.fromMap(doc.data(), doc.id))
           .toList();
     });
   }
@@ -181,7 +180,7 @@ class SwapProvider with ChangeNotifier {
         .map((snapshot) {
       return snapshot.docs
           .map(
-              (doc) => Book.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+              (doc) => Book.fromMap(doc.data(), doc.id))
           .toList();
     });
   }
@@ -202,7 +201,7 @@ class SwapProvider with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      print('Error canceling swap offer: $e');
+      debugPrint('Error canceling swap offer: $e');
       _isLoading = false;
       notifyListeners();
       return false;

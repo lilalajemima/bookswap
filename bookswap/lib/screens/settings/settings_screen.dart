@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../utils/constants.dart';
 import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
@@ -10,7 +9,7 @@ import '../auth/login_screen.dart';
 //it displays user profile information, allows toggling notification preferences for swaps and messages, stores settings in firestore, and provides logout functionality with confirmation.
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -63,7 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      print('Error loading user data: $e');
+      debugPrint('Error loading user data: $e');
       setState(() => _isLoading = false);
       
       if (mounted) {
@@ -87,10 +86,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         
         if (success && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text('Settings updated'),
               backgroundColor: AppColors.secondary,
-              duration: const Duration(seconds: 1),
+              duration: Duration(seconds: 1),
             ),
           );
         } else if (!success && mounted) 
@@ -205,7 +204,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: AppColors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppColors.secondary.withOpacity(0.2),
+              color: AppColors.secondary.withValues(alpha: 0.2),
             ),
           ),
           child: Column(children: children),
@@ -226,7 +225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: AppColors.secondary.withOpacity(0.1),
+          color: AppColors.secondary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
@@ -246,7 +245,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       subtitle: subtitle != null
           ? Text(
               subtitle,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
                 color: AppColors.textLight,
               ),
@@ -313,7 +312,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             });
                             _updateNotificationSettings('swapNotifications', value);
                           },
-                          activeColor: AppColors.accent,
+                          activeTrackColor: AppColors.accent,
                         ),
                       ),
                       const Divider(height: 1),
@@ -329,7 +328,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             });
                             _updateNotificationSettings('messageNotifications', value);
                           },
-                          activeColor: AppColors.accent,
+                          activeTrackColor: AppColors.accent,
                         ),
                       ),
                     ],

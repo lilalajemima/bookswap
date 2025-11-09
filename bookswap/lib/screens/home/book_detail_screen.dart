@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../utils/constants.dart';
 import '../../models/book.dart';
 import '../../providers/swap_provider.dart';
-import 'post_book_screen.dart';
 import '../chat/chat_screen.dart';
 
 class BookDetailScreen extends StatefulWidget {
@@ -13,10 +12,10 @@ class BookDetailScreen extends StatefulWidget {
   final bool isOwner;
 
   const BookDetailScreen({
-    Key? key,
+    super.key,
     required this.book,
     this.isOwner = false,
-  }) : super(key: key);
+  });
 
   @override
   State<BookDetailScreen> createState() => _BookDetailScreenState();
@@ -63,7 +62,9 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                       backgroundColor: AppColors.secondary,
                     ),
                   );
-                  Navigator.pop(context);
+                  if (mounted) {
+                    Navigator.pop(context);
+                  }
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -208,7 +209,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.secondary.withOpacity(0.1),
+                          color: AppColors.secondary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -228,7 +229,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.1),
+                            color: Colors.orange.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
@@ -263,7 +264,7 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                       color: AppColors.white,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: AppColors.secondary.withOpacity(0.2),
+                        color: AppColors.secondary.withValues(alpha: 0.2),
                       ),
                     ),
                     child: Row(

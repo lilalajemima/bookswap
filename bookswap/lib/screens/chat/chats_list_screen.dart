@@ -9,7 +9,7 @@ import 'chat_screen.dart';
 //users can tap on any chat to open the full conversation and the list updates in real-time as new messages arrive.
 
 class ChatsListScreen extends StatefulWidget {
-  const ChatsListScreen({Key? key}) : super(key: key);
+  const ChatsListScreen({super.key});
 
   @override
   State<ChatsListScreen> createState() => _ChatsListScreenState();
@@ -37,14 +37,6 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
 
   String _getRecipientName(Map<String, dynamic> chat) {
     List participants = chat['participants'] ?? [];
-    
-    String? otherUserId;
-    for (var participantId in participants) {
-      if (participantId != _currentUserId) {
-        otherUserId = participantId;
-        break;
-      }
-    }
 
     if (chat['lastSenderId'] != _currentUserId && chat['lastSenderName'] != null) {
       return chat['lastSenderName'];
@@ -125,10 +117,10 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                   Icon(
                     Icons.error_outline,
                     size: 64,
-                    color: Colors.red.withOpacity(0.5),
+                    color: Colors.red.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: 16),
-                  Text(
+                  const Text(
                     'Error loading chats',
                     style: TextStyle(
                       fontSize: 18,
@@ -140,7 +132,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                     snapshot.error.toString(),
                     style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.textLight.withOpacity(0.7),
+                      color: AppColors.textLight.withValues(alpha: 0.7),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -157,10 +149,10 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                   Icon(
                     Icons.chat_bubble_outline,
                     size: 80,
-                    color: AppColors.textLight.withOpacity(0.5),
+                    color: AppColors.textLight.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: 16),
-                  Text(
+                  const Text(
                     'No chats yet',
                     style: TextStyle(
                       fontSize: 18,
@@ -172,7 +164,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                     'Start a conversation from book details',
                     style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.textLight.withOpacity(0.7),
+                      color: AppColors.textLight.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -214,7 +206,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side: BorderSide(
-                      color: AppColors.secondary.withOpacity(0.2),
+                      color: AppColors.secondary.withValues(alpha: 0.2),
                     ),
                   ),
                   child: ListTile(
@@ -246,7 +238,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                       chat['lastMessage'] ?? '',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.textLight,
                         fontSize: 14,
                       ),
@@ -257,7 +249,7 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                       children: [
                         Text(
                           _formatTime(lastMessageTime),
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textLight,
                           ),
