@@ -7,6 +7,7 @@ import 'utils/constants.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'providers/swap_provider.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +16,10 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize notification service
+  final notificationService = NotificationService();
+  await notificationService.initialize();
 
   runApp(const BookSwapApp());
 }

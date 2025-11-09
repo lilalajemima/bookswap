@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../utils/constants.dart';
 import '../../services/auth_service.dart';
+import '../../services/notification_service.dart';
 import '../auth/login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -13,8 +15,9 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final AuthService _authService = AuthService();
-  bool _notificationReminders = true;
-  bool _emailUpdates = false;
+  final NotificationService _notificationService = NotificationService();
+  bool _swapNotifications = true;
+  bool _messageNotifications = true;
   String _userName = 'User';
   String _userEmail = '';
   bool _isLoading = true;
@@ -23,6 +26,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+    _initializeNotifications();
+  }
+
+  Future<void> _initializeNotifications() async {
+    await _notificationService.initialize();
   }
 
   Future<void> _loadUserData() async {
@@ -41,8 +49,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _userEmail = user.email ?? '';
             
             if (userData != null) {
-              _notificationReminders = userData['notificationReminders'] ?? true;
-              _emailUpdates = userData['emailUpdates'] ?? false;
+              _swapNotifications = userData['swapNotifications'] ?? true;
+              _messageNotifications = userData['messageNotifications'] ?? true;
             }
             
             _isLoading = false;
@@ -84,10 +92,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         } else if (!success && mounted) {
           // Revert the switch if update failed
           setState(() {
-            if (key == 'notificationReminders') {
-              _notificationReminders = !value;
-            } else if (key == 'emailUpdates') {
-              _emailUpdates = !value;
+            if (key == 'swapNotifications') {
+              _swapNotifications = !value;
+            } else if (key == 'messageNotifications') {
+              _messageNotifications = !value;
             }
           });
           
@@ -102,10 +110,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       // Revert the switch on error
       setState(() {
-        if (key == 'notificationReminders') {
-          _notificationReminders = !value;
-        } else if (key == 'emailUpdates') {
-          _emailUpdates = !value;
+        if (key == 'swapNotifications') {
+          _swapNotifications = !value;
+        } else if (key == 'messageNotifications') {
+          _messageNotifications = !value;
         }
       });
       
@@ -288,74 +296,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'NOTIFICATIONS',
                     [
                       _buildSettingsTile(
-                        icon: Icons.notifications_outlined,
-                        title: 'Notification reminders',
-                        subtitle: 'Get notified about swap requests',
+                        icon: Icons.swap_horiz,
+                        title: 'Swap notifications',
+                        subtitle: 'Get notified when swap requests are accepted',
                         trailing: Switch(
-                          value: _notificationReminders,
+                          value: _swapNotifications,
                           onChanged: (value) {
                             setState(() {
-                              _notificationReminders = value;
+                              _swapNotifications = value;
                             });
-                            _updateNotificationSettings('notificationReminders', value);
+                            _updateNotificationSettings('swapNotifications', value);
                           },
                           activeColor: AppColors.accent,
                         ),
                       ),
                       const Divider(height: 1),
                       _buildSettingsTile(
-                        icon: Icons.email_outlined,
-                        title: 'Email Updates',
-                        subtitle: 'Receive updates via email',
+                        icon: Icons.message_outlined,
+                        title: 'Message notifications',
+                        subtitle: 'Get notified when you receive new messages',
                         trailing: Switch(
-                          value: _emailUpdates,
+                          value: _messageNotifications,
                           onChanged: (value) {
                             setState(() {
-                              _emailUpdates = value;
+                              _messageNotifications = value;
                             });
-                            _updateNotificationSettings('emailUpdates', value);
+                            _updateNotificationSettings('messageNotifications', value);
                           },
                           activeColor: AppColors.accent,
                         ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Account Section
-                  _buildSettingsSection(
-                    'ACCOUNT',
-                    [
-                      _buildSettingsTile(
-                        icon: Icons.verified_user,
-                        title: 'Email Verification',
-                        subtitle: FirebaseAuth.instance.currentUser?.emailVerified == true
-                            ? 'Email verified'
-                            : 'Email not verified',
-                        trailing: FirebaseAuth.instance.currentUser?.emailVerified == true
-                            ? const Icon(Icons.check_circle, color: Colors.green)
-                            : TextButton(
-                                onPressed: () async {
-                                  final result = await _authService.resendVerificationEmail();
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          result['message'] ?? result['error'] ?? 'Unknown error',
-                                        ),
-                                        backgroundColor: result['success']
-                                            ? AppColors.secondary
-                                            : Colors.red,
-                                      ),
-                                    );
-                                  }
-                                },
-                                child: const Text(
-                                  'Resend',
-                                  style: TextStyle(color: AppColors.secondary),
-                                ),
-                              ),
                       ),
                     ],
                   ),
