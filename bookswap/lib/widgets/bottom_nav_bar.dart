@@ -32,18 +32,23 @@ class CustomBottomNavBar extends StatelessWidget {
         unselectedItemColor: AppColors.white.withOpacity(0.6),
         type: BottomNavigationBarType.fixed,
         elevation: 0,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
+        selectedFontSize: 11,
+        unselectedFontSize: 11,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home),
-            label: 'Home',
+            label: 'Browse',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.library_books_outlined),
             activeIcon: Icon(Icons.library_books),
-            label: 'My Listings',
+            label: 'My Books',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.swap_horiz),
+            activeIcon: Icon(Icons.swap_horiz),
+            label: 'Offers',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.chat_bubble_outline),

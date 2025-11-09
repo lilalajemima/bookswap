@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import 'browse_listings_screen.dart';
 import 'my_listings_screen.dart';
+import 'my_offers_screen.dart';
 import '../chat/chats_list_screen.dart';
 import '../settings/settings_screen.dart';
 
@@ -18,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _screens = [
     const BrowseListingsScreen(),
     const MyListingsScreen(),
+    const MyOffersScreen(), // New screen for swap offers
     const ChatsListScreen(),
     const SettingsScreen(),
   ];

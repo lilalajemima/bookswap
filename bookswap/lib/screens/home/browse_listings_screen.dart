@@ -1,55 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../../utils/constants.dart';
 import '../../widgets/book_card.dart';
 import '../../models/book.dart';
+import '../../providers/swap_provider.dart';
 import 'post_book_screen.dart';
 import 'book_detail_screen.dart';
 
-class BrowseListingsScreen extends StatefulWidget {
+class BrowseListingsScreen extends StatelessWidget {
   const BrowseListingsScreen({Key? key}) : super(key: key);
 
   @override
-  State<BrowseListingsScreen> createState() => _BrowseListingsScreenState();
-}
-
-class _BrowseListingsScreenState extends State<BrowseListingsScreen> {
-  List<Book> _books = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadBooks();
-  }
-
-  Future<void> _loadBooks() async {
-    setState(() => _isLoading = true);
-    
-    try {
-      String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
-      
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('books')
-          .orderBy('postedAt', descending: true)
-          .get();
-      
-      setState(() {
-        _books = snapshot.docs
-            .map((doc) => Book.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-            .where((book) => book.ownerId != currentUserId) // Don't show own books
-            .toList();
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Error loading books: $e');
-      setState(() => _isLoading = false);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final swapProvider = Provider.of<SwapProvider>(context);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -72,69 +36,74 @@ class _BrowseListingsScreenState extends State<BrowseListingsScreen> {
                 MaterialPageRoute(
                   builder: (context) => const PostBookScreen(),
                 ),
-              ).then((_) => _loadBooks());
+              );
             },
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(
+      body: StreamBuilder<List<Book>>(
+        stream: swapProvider.watchAllBooks(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
               child: CircularProgressIndicator(
                 color: AppColors.secondary,
               ),
-            )
-          : _books.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.book_outlined,
-                        size: 80,
-                        color: AppColors.textLight.withOpacity(0.5),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No books listed yet',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: AppColors.textLight,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Be the first to post a book!',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textLight.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
+            );
+          }
+
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.book_outlined,
+                    size: 80,
+                    color: AppColors.textLight.withOpacity(0.5),
                   ),
-                )
-              : RefreshIndicator(
-                  color: AppColors.secondary,
-                  onRefresh: _loadBooks,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _books.length,
-                    itemBuilder: (context, index) {
-                      return BookCard(
-                        book: _books[index],
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => BookDetailScreen(
-                                book: _books[index],
-                              ),
-                            ),
-                          ).then((_) => _loadBooks());
-                        },
-                      );
-                    },
+                  const SizedBox(height: 16),
+                  Text(
+                    'No books listed yet',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: AppColors.textLight,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Be the first to post a book!',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textLight.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: snapshot.data!.length,
+            itemBuilder: (context, index) {
+              return BookCard(
+                book: snapshot.data![index],
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BookDetailScreen(
+                        book: snapshot.data![index],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
