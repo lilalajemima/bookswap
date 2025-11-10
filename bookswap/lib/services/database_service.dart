@@ -6,8 +6,6 @@ import '../models/chat_message.dart';
 class DatabaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // ==================== BOOKS ====================
-
   // Get all books stream (real-time updates)
   Stream<List<Book>> getBooksStream() {
     return _firestore

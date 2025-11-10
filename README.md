@@ -58,7 +58,7 @@ lib/
 
 ### Architecture Diagram
 
-![alt text](<Auth Screens.png>)
+![alt text](<Architecture.png>)
 
 ## Prerequisites
 
